@@ -12,23 +12,32 @@ function Lexer(def){
 Lexer.prototype = {
     constructor: Lexer,
     lex: function(input){
-        this.position = new Lexer.Position(1,0)
-        this.input = input
-        var result = []
+        var position = new Lexer.Position(1,0),
+            result = []
+            //longestRule,
+            //matchedRules = []
+        
+        while(position.index < input.length){
+            var longestRule = this.rules.reduce(function(){
+                //TODO: ...
+            })
+            longestRule.regex.lastIndex = position.index
+            var match = longestRule.regex.exec(input)
+            result.push(longestRule.action(match,position))
+        }
+        
         //TODO: ...
+
+        return result
     },
     lexIterator: function(input){
         this.position = new Lexer.Position(1,0)
         this.input = input
-        return this.iterator()
+        this.done = input.length == 0
+        return this
     },
-    iterator: function(){
-        var self = this;
-        return {
-            next: function(){
-                //TODO: value, done
-            }
-        }
+    next: function(){
+        //TODO: ...
     }
 }
 Lexer.defaultAction = function(match, position){
@@ -43,9 +52,10 @@ Lexer.Rule = function(regex,action){
     this.regex = new RegExp("^(" + regex.source + ")")
     this.action = action;
 }
-Lexer.Position = function(line, col){
+Lexer.Position = function(line, col, index){
     this.line = line
     this.col = col
+    this.index = index
 }
 Lexer.Token = function(id,position,value){
     this.id = id
