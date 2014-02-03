@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>TDOP Parser</title>
+        <style type="text/css">
+            
+        </style>
+    </head>
+    <body>
+        <h2>Source Code</h2>
+        <p>
+            <textarea id="txtSrc" cols="80" rows="10" wrap="off"></textarea>
+        </p>
+        <p>
+            <button id="btnParse">Parse</button>
+        </p>
+        <h2>Output</h2>
+        <p>
+            <textarea id="txtOutput" cols="80" rows="10" wrap="off"></textarea>
+        </p>
+        <script type="text/javascript" src="src/Parser.js"></script>
+        <script type="text/javascript" src="examples/arithmetic/arithmetic.js"></script>
+        <script type="text/javascript">
+            function id(o){ return document.getElementById(o); }
+
+            var txtSrc = id('txtSrc'),
+                btnParse = id('btnParse'),
+                txtOutput = id('txtOutput');
+            btnParse.onclick = function(){
+                alert("Untested: probably borked...");
+                //txtOutput.value = arithmetic.parse(txtSrc.value);
+            };
+        </script>
+    </body>
+</html>
