@@ -1,44 +1,63 @@
 var arithmetic = Parser({
     '+': {
         pattern: /\+/,
-        infix: {id:'ADD',lbp:2},
-        prefix: {id:'POS',rbp:10}
+        lbp: 2,
+        rbp: 10,
+        led: Parser.infix('ADD'),
+        nud: Parser.prefix('POS')
     },
     '-': {
         pattern: /\-/,
-        infix: {id:'SUB',lbp:2},
-        prefix: {id:'NEG',rbp:10}
+        lbp:2,
+        rbp:10,
+        led: Parser.infix('SUB')
+        nud: Parser.prefix('NEG')
     },
     '*': {
         pattern: /\*/,
-        infix: {id:'MUL',lbp:4}
+        lbp: 4,
+        led: Parser.infix('MUL')
     },
     '/': {
         pattern:/\//,
-        infix: {id:'DIV',lbp:4}
+        lbp: 4,
+        led: Parser.infix('DIV')
     },
-    '^': {
+    '^': { 
         pattern: /\^/,
-        infixR: {id:'POW',lbp:6}
+        lbp: 6,
+        led: Parser.infixR('POW')
     },
     '!': {
         pattern:/!/,
-        postfix: {id:'FACT',lbp:6}
+        lbp: 6,
+        led: Parser.postfix('FACT')
     },
     '(num)': {
         pattern: /\d+(?:\.\d+)?/,
-        literal: {}
-    }/*,
+        nud: Parser.literal('(num)')
+    },
     '(': {
         pattern: /\(/
-        //TODO (nud: 10)
+        rbp: 10,
+        nud: function(){
+            var e = this.parser.parseExpression(0);
+            this.advance(')');
+            return e;
+        }
     },
     ')': {
         pattern: /\)/
-        //TODO
-    },
+    }/*,
     '(sp)': {
         pattern: /\x20+/
         //TODO
-    }*/
+        //advance position, but don't return?
+        //or advance position and then return parseExression?
+    },
+    '(lt): {
+        nud: function(){
+            //TODO
+        }
+    }'*/
 });

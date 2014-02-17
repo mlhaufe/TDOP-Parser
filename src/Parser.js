@@ -1,3 +1,4 @@
+//TODO: Testing needed
 var Parser = (function(){
     function Position(index, line, col){
         this.index = index;
@@ -21,86 +22,29 @@ var Parser = (function(){
     Lexer.prototype = {
         constructor: Lexer,
         action: function(symbolTable, match, position){
-            return symbolTable.create(new Token(this.id, position.clone(), match[0]));
+            var t = symbolTable.create(this.id, position.clone(), match[0]),
+                len = match[0].length;
+            position.index += len;
+            position.col += len;
+            return t;
         },
         lex: function(src){
             this.match = this.pattern.exec(src);
         }
     };
 
-    function Token(id,position,value){
-        this.id = id;
-        this.position = position;
-        this.value = value;
-    }
-
-    function Tokenizer(){
-        this.lexers = [];
-    }
-    Tokenizer.prototype = {
-        constructor: Tokenizer,
-        advance: function(symbolTable){
-            var longestLexer = this.lexers.map(function(lexer){
-                lexer.pattern.lastIndex = this.position.index;
-                lexer.lex(this.src);
-            }, this).reduce(function(left,right){
-                return left.match[0].length >= right.match[0].length ? left : right; 
-            });
-
-            return longestLexer.action(symbolTable, longestLexer.match, this.position);
-        },
-        defLexer: function(id,pattern,action){
-            this.lexers.push(new Lexer(id, pattern, action));
-        },
-        position: undefined,
-        src: ""
-    };
-
-    function Symbol(id){ this.id = this.value = id; }
-    Symbol.prototype = {
-        constructor: Symbol,
-        lbp:0,
-        rbp:0,
-        nud: function(){
-            throw new TypeError(
-                "{id:'"+this.id+",value:'"+this.value+"'}' is not a prefix|literal.\r\n" +
-                "position:"+this.position
-            );
-        },
-        led: function(){
-            throw new TypeError(
-                "{id:'"+this.id+",value:'"+this.value+"'}' is not a infix|infixR|postFix.\r\n" +
-                "position:"+this.position
-            );
-        }
-    };
-
     function hasOwn(o,p){ return Object.prototype.hasOwnProperty.call(o,p); }
 
-    function infixLed(left){
-        this.left = left;
-        this.right = Parser.parseExpression(this.lbp);
-        return this;
-    }
-    
-    function postfixLed(left){
-        this.left = left;
-        return this;
+    function defaultNud(){
+        throw new TypeError(
+            "'" + this.id + "' cannot appear at the beginning of an expression. Position: " + this.position
+        );
     }
 
-    function infixRLed(left){
-        this.left = left;
-        this.right = Parser.parseExpression(this.lbp - 1);
-        return this;
-    }
-
-    function literalNud(){
-        return this;
-    }
-
-    function prefixNud(){
-        this.left = Parser.parseExpression(this.rbp);
-        return this;
+    function defaultLed(){
+        throw new TypeError(
+            "'" + this.id + "' cannot appear after the beginning of an expression. Position: " + this.position
+        );
     }
 
     function SymbolTable(parent){
@@ -109,46 +53,23 @@ var Parser = (function(){
     }
     SymbolTable.prototype = {
         constructor: SymbolTable,
-        create: function(token){
-            var symbolProto = this.symbols[token.id];
-            if(symbolProto)
-                token.prototype = symbolProto;
-            else
-                throw new TypeError("'" + token.id + "' is undefined");
-            return token;
+        create: function(id,position,value){
+            var symbolProto = this.symbols[id];
+            if(symbolProto) {
+                var t = Object.create(symbolProto);
+                t.position = position;
+                t.value = value;
+                return t;
+            } else {
+                throw new TypeError("'" + id + "' is undefined");
+            }
         },
-        defInfix: function(def){
-            var s = this.defSymbol(def.id);
-            s.lbp = def.lbp;
-            s.led = def.led || infixLed;
-            return s;
-        },
-        defInfixR: function(def){
-            var s = this.defSymbol(def.id);
-            s.lbp = def.lbp;
-            s.led = def.led || infixRLed;
-            return s;
-        },
-        defLiteral: function(def){
-            var s = this.defSymbol(def.id);
-            s.nud = def.nud || literalNud;
-            return s;
-        },
-        defPostfix: function(def){
-            var s = this.defSymbol(def.id);
-            s.lbp = def.lbp;
-            s.led = def.led || postfixLed;
-            return this;
-        },
-        defPrefix: function(def){
-            var s = this.defSymbol(def.id);
-            s.rbp = def.rbp;
-            s.nud = def.nud || prefixNud;
-            return s;
-        },
-        defSymbol: function(id){
-            return hasOwn(this.symbols,id) ? this.symbols[id] :
-                (this.symbols[id] = new Symbol(id));
+        defSymbol: function(id, def){
+            this.symbols[id] = def;
+            def.rbp = def.rbp || 0;
+            def.lbp = def.lbp || 0;
+            def.nud = def.nud || defaultNud;
+            def.led = def.led || defaultLed;
         },
         lookup: function(id){
             return hasOwn(this.symbols,id) ? this.symbols[id] :
@@ -156,46 +77,104 @@ var Parser = (function(){
         }
     };
 
+    var EOF = {pattern:/$/},
+        UNK = {pattern:/[\s\S]/};
+
     function Parser(defs){
         if(!(this instanceof Parser))
             return new Parser(defs);
-        var s = this.symbolTable = new SymbolTable(),
-            t = this.tokenizer = new Tokenizer();
+        this.symbolTable = new SymbolTable();
+        this.lexers = [];
+
         Object.keys(defs).forEach(function(id){
             var def = defs[id];
-            t.defLexer(id, def.pattern, def.action);
-            if(def.prefix) s.defPrefix(def.prefix);
-            if(def.infix) s.defInfix(def.infix);
-            if(def.infixR) s.defInfixR(def.infixR);
-            if(def.postfix) s.defPostfix(def.postfix);
-            if(def.literal) s.defLiteral(def.literal);
-        });
-        t.defLexer('(eof)', /$/);
-        s.defSymbol('(eof)');
-        t.defLexer('(unknown)', /[\s\S]/);
-        s.defSymbol('(unknown)');
+            def.parser = this;
+            this.defLexer(id, def);
+            this.symbolTable.defSymbol(id, def);
+        },this);
+
+        var eof = Object.create(EOF);
+        this.defLexer('(eof)', eof);
+        this.symbolTable.defSymbol('(eof)', eof);
+        var unk = Object.create(UNK);
+        this.defLexer('(unknown)', unk);
+        this.symbolTable.defSymbol('(unknown)', eof);
     }
     Parser.prototype = {
+        //TODO: utilize id
+        advance: function(id){
+            var longestLexer = this.lexers.map(function(lexer){
+                lexer.pattern.lastIndex = this.position.index;
+                lexer.lex(this.src);
+                return lexer;
+            }, this).reduce(function(left,right){
+                return !left.match || left.match &&
+                    left.match[0].length < right.match[0].length ? right : left;
+            });
+
+            this.curToken = longestLexer.action(symbolTable, longestLexer.match, this.position);
+            return this.curToken;
+        },
         constructor: Parser,
-        //TODO: pass in symbolTable at this point and thread it through?
+        curToken: undefined,
+        defLexer: function(id, def){
+            this.lexers.push(new Lexer(id, def.pattern, def.action));
+        },
         parse: function(src){
-            this.src = this.tokenizer.src = src;
-            this.tokenizer.position = new Position(0,1,0);
-            this.curToken = this.tokenizer.advance(this.symbolTable);
+            this.src = src;
+            this.position = new Position(0,1,0);
+            this.advance();
             return this.parseExpression(0);
         },
         parseExpression: function(rbp){
             var left, t = this.curToken;
-            this.curToken = this.tokenizer.advance(this.symbolTable);
+            this.curToken = this.advance(this.symbolTable);
             left = t.nud();
             while(rbp < this.curToken.lbp){
                 t = this.curToken;
-                this.curToken = this.tokenizer.advance(this.symbolTable);
+                this.curToken = this.advance(this.symbolTable);
                 left = t.led(left);
             }
             return left;
-        }
+        },
+        position: undefined,
+        src: undefined
     };
-    
+    Parser.infix = function(id){
+        return function(left){
+            this.id = id;
+            this.left = left;
+            this.right = this.parser.parseExpression(this.lbp);
+            return this;
+        };
+    };
+    Parser.prefix = function(id){
+        return function(){
+            this.id = id;
+            this.left = this.parser.parseExpression(this.rbp);
+            return this;
+        };
+    };
+    Parser.infixR = function(id){
+        return function(left){
+            this.id = id;
+            this.left = left;
+            this.right = this.parser.parseExpression(this.lbp - 1);
+            return this;
+        };
+    };
+    Parser.literal = function(id){
+        return function(){
+            this.id = id;
+            return this;
+        };
+    };
+    Parser.postfix = function(id){
+        return function(left){
+            this.id = id;
+            this.left = left;
+            return this;
+        };
+    };
     return Parser;
 })();
