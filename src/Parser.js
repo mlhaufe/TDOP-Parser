@@ -1,4 +1,3 @@
-//TODO: Testing needed
 var Parser = (function(){
     function Position(index, line, col){
         this.index = index;
@@ -16,7 +15,8 @@ var Parser = (function(){
 
     function Lexer(id, regex, action){
         this.id = id;
-        this.pattern = new RegExp("^("+regex.source+")");
+        this.pattern = regex.source == "$" ?
+            new RegExp("$","g") : new RegExp(regex.source,"g");
         if(action) this.action = action;
     }
     Lexer.prototype = {
@@ -28,8 +28,14 @@ var Parser = (function(){
             position.col += len;
             return t;
         },
+        //FIXME: The sticky flag of regex: 'y' is not yet reliably available,
+        //so a workaround is necessary. Something more efficient is needed 
         lex: function(src){
-            this.match = this.pattern.exec(src);
+            var i = this.pattern.lastIndex,
+                m = this.match = this.pattern.exec(src);
+            if(m && i !== m.index){
+                this.match = null;
+            }
         }
     };
 
@@ -77,8 +83,8 @@ var Parser = (function(){
         }
     };
 
-    var EOF = {pattern:/$/},
-        UNK = {pattern:/[\s\S]/};
+    var EOF = {id:'EOF', pattern:/$/, nud: defaultNud, led: defaultLed },
+        UNK = {id: 'UNKNOWN', pattern:/[\s\S]/, nud: Parser.literalNud };
 
     function Parser(defs){
         if(!(this instanceof Parser))
@@ -98,21 +104,35 @@ var Parser = (function(){
         this.symbolTable.defSymbol('(eof)', eof);
         var unk = Object.create(UNK);
         this.defLexer('(unknown)', unk);
-        this.symbolTable.defSymbol('(unknown)', eof);
+        this.symbolTable.defSymbol('(unknown)', unk);
     }
     Parser.prototype = {
-        //TODO: utilize id
         advance: function(id){
-            var longestLexer = this.lexers.map(function(lexer){
+            var matchedLexers = this.lexers.map(function(lexer){
                 lexer.pattern.lastIndex = this.position.index;
                 lexer.lex(this.src);
                 return lexer;
-            }, this).reduce(function(left,right){
-                return !left.match || left.match &&
-                    left.match[0].length < right.match[0].length ? right : left;
+            }, this).filter(function(lexer){
+                return lexer.match !== null;
+            });
+            //TODO: Collapse this into a default argument for reduce
+            //Is it possible for there to be no match?
+            if(matchedLexers.length === 0)
+                return;
+
+            var longestLexer = matchedLexers.reduce(function(left,right){
+                return left.match[0].length < right.match[0].length ? right : left;
             });
 
-            this.curToken = longestLexer.action(symbolTable, longestLexer.match, this.position);
+            this.curToken = longestLexer.action(
+                this.symbolTable,
+                longestLexer.match,
+                this.position
+            );
+
+            if(id && id != this.curToken.id)
+                throw new TypeError("'"+ id +"' expected. Position: " + this.curToken.position);
+
             return this.curToken;
         },
         constructor: Parser,
@@ -121,6 +141,7 @@ var Parser = (function(){
             this.lexers.push(new Lexer(id, def.pattern, def.action));
         },
         parse: function(src){
+            if(src.length === 0) return;
             this.src = src;
             this.position = new Position(0,1,0);
             this.advance();
@@ -128,11 +149,11 @@ var Parser = (function(){
         },
         parseExpression: function(rbp){
             var left, t = this.curToken;
-            this.curToken = this.advance(this.symbolTable);
+            this.advance();
             left = t.nud();
             while(rbp < this.curToken.lbp){
                 t = this.curToken;
-                this.curToken = this.advance(this.symbolTable);
+                this.advance();
                 left = t.led(left);
             }
             return left;
@@ -140,18 +161,30 @@ var Parser = (function(){
         position: undefined,
         src: undefined
     };
+    
+    function binaryPrint(){
+        return "('" + this.id + "', '"+this.left+"', '"+this.right+"')";
+    }
+    
     Parser.infix = function(id){
         return function(left){
             this.id = id;
             this.left = left;
             this.right = this.parser.parseExpression(this.lbp);
+            this.toString = binaryPrint;
             return this;
         };
     };
+
+    function unaryPrint(){
+        return "('" + this.id + "', '"+this.left+"')";
+    }
+
     Parser.prefix = function(id){
         return function(){
             this.id = id;
             this.left = this.parser.parseExpression(this.rbp);
+            this.toString = unaryPrint;
             return this;
         };
     };
@@ -160,12 +193,19 @@ var Parser = (function(){
             this.id = id;
             this.left = left;
             this.right = this.parser.parseExpression(this.lbp - 1);
+            this.toString = binaryPrint;
             return this;
         };
     };
+    
+    function literalPrint(){
+        return "('" + this.id + "', '"+this.value+"')";
+    }
+    
     Parser.literal = function(id){
         return function(){
             this.id = id;
+            this.toString = literalPrint;
             return this;
         };
     };
@@ -173,6 +213,7 @@ var Parser = (function(){
         return function(left){
             this.id = id;
             this.left = left;
+            this.toString = unaryPrint;
             return this;
         };
     };

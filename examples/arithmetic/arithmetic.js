@@ -10,7 +10,7 @@ var arithmetic = Parser({
         pattern: /\-/,
         lbp:2,
         rbp:10,
-        led: Parser.infix('SUB')
+        led: Parser.infix('SUB'),
         nud: Parser.prefix('NEG')
     },
     '*': {
@@ -19,7 +19,7 @@ var arithmetic = Parser({
         led: Parser.infix('MUL')
     },
     '/': {
-        pattern:/\//,
+        pattern: /\//,
         lbp: 4,
         led: Parser.infix('DIV')
     },
@@ -38,23 +38,27 @@ var arithmetic = Parser({
         nud: Parser.literal('(num)')
     },
     '(': {
-        pattern: /\(/
+        pattern: /\(/,
         rbp: 10,
         nud: function(){
             var e = this.parser.parseExpression(0);
-            this.advance(')');
+            this.parser.advance(')');
             return e;
         }
     },
     ')': {
         pattern: /\)/
-    }/*,
-    '(sp)': {
-        pattern: /\x20+/
-        //TODO
-        //advance position, but don't return?
-        //or advance position and then return parseExression?
     },
+    '(sp)': {
+        pattern: /\x20+/,
+        nud: function(){
+            this.parser.advance();
+            return this.parser.curToken.nud();
+        },
+        led: function(left){
+            return this.parser.curToken.led(left);
+        }
+    }/*,
     '(lt): {
         nud: function(){
             //TODO

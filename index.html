@@ -10,12 +10,13 @@
     <body>
         <h2>Source Code</h2>
         <p>
-            <textarea id="txtSrc" cols="80" rows="10" wrap="off"></textarea>
+            <textarea id="txtSrc" cols="80" rows="10" wrap="off">2 +8</textarea>
         </p>
         <p>
             <button id="btnParse">Parse</button>
         </p>
         <h2>Output</h2>
+        <span id="spnTime"></span>
         <p>
             <textarea id="txtOutput" cols="80" rows="10" wrap="off"></textarea>
         </p>
@@ -26,9 +27,13 @@
 
             var txtSrc = id('txtSrc'),
                 btnParse = id('btnParse'),
-                txtOutput = id('txtOutput');
+                txtOutput = id('txtOutput'),
+                spnTime = id('spnTime');
             btnParse.onclick = function(){
-                txtOutput.value = arithmetic.parse(txtSrc.value);
+            	var d1 = new Date();
+            	var result = arithmetic.parse(txtSrc.value);
+            	spnTime.textContent = new Date() - d1 + "ms";
+                txtOutput.value = result;
             };
         </script>
     </body>
