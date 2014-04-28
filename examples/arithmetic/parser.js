@@ -69,5 +69,9 @@ var arithmetic = new Parser({
     'unknown': {
         lexer: [/[\s\S]/],
         literal: UNK
+    },
+    'EOF': {
+        lexer:[/$/],
+        nud: function(){ return this; }
     }
 });
