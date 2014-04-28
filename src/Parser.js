@@ -4,12 +4,20 @@ var Parser = (function(){
         this.value = value;
     }
 
-    function SymbolDef(id,lexer,lbp,rbp){
+    function SymbolDef(id,rule){
         this.id = id;
-        this.lexer = lexer;
-        this.lbp = lbp || 0;
-        this.rbp = rbp || 0;
-    } 
+        this.lexer = new Lexer(this,rule.lexer[0],rule.lexer[1]);
+        this.lbp = rule.lbp || 0;
+        this.rbp = rule.rbp || 0;
+        if(rule.nud) this.nud = rule.nud;
+        if(rule.led) this.led = rule.led;
+        //TODO: these fixity methods are awkward looking...
+        if(rule.prefix) this.nud = prefix(this,rule.prefix);
+        if(rule.literal) this.nud = literal(this,rule.literal);
+        if(rule.infix) this.nud = infix(this,rule.infix);
+        if(rule.infixR) this.led = infixR(this,rule.infixR);
+        if(rule.suffix) this.led = suffix(this,rule.suffix);
+    }
     SymbolDef.prototype = {
         nud: function(){
             throw new Error("'"+this.id+"' is not a prefix. "+this.position);
@@ -109,19 +117,7 @@ var Parser = (function(){
 
     function Parser(rules){
         this.rules = Object.keys(rules).map(function(id){
-            var rule = rules[id],
-                def = new SymbolDef(id,undefined,rule.lbp,rule.rbp),
-                lexer = new Lexer(def,rule.lexer[0],rule.lexer[1]);
-            def.lexer = lexer;
-            //TODO: decorators wanted?
-            if(rule.nud) def.nud = rule.nud;
-            if(rule.led) def.led = rule.led;
-            if(rule.prefix) def.nud = prefix(def,rule.prefix);
-            if(rule.literal) def.nud = literal(def,rule.literal);
-            if(rule.infix) def.nud = infix(def,rule.infix);
-            if(rule.infixR) def.led = infixR(def,rule.infixR);
-            if(rule.suffix) def.led = suffix(def,rule.suffix);
-            return def;
+            return new SymbolDef(id,rules[id]);
         }).concat(EOF);
     }
     Parser.prototype = {
