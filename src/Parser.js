@@ -111,10 +111,6 @@ var Parser = (function(){
         };
     }
 
-    var EOF = new SymbolDef('EOF');
-    EOF.lexer = new Lexer(EOF,/$/);
-    EOF.nud = function(){ return this; }
-
     function Parser(rules){
         this.rules = Object.keys(rules).map(function(id){
             return new SymbolDef(id,rules[id]);
