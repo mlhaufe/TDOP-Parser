@@ -1,77 +1,69 @@
-var arithmetic = new Parser({
+//requires: /src/Parser.js; ./ast.js
+var parser = new Parser({
     '+': {
         lexer: [/\+/],
-        lbp: 2,
-        rbp: 10,
-        infix: Add,
-        prefix: Pos
+        prefix: [10,Pos],
+        infix:[2,Add]
     },
     '-': {
         lexer: [/\-/],
-        lbp: 2,
-        rbp: 10,
-        infix: Sub,
-        prefix: Neg
+        prefix: [10,Neg],
+        infix: [2,Sub]
     },
     '*': {
         lexer: [/\*/],
-        lbp: 4,
-        infix: Mul
+        infix: [4,Mul]
     },
     '/': {
-        lexer: [/\\/],
-        lbp: 4,
-        infix: Div
+        lexer: [/\//],
+        infix: [4,Div]
     },
     '^': {
         lexer: [/\^/],
-        lbp: 6,
-        infixR: Pow
+        infixR: [6,Pow]
     },
     '!': {
         lexer: [/!/],
-        lbp: 6,
-        suffix: Fact
+        postfix: [6,Fact]
     },
-    'num': {
+    'NUM': {
         lexer: [/\d+(?:\.\d+)?/],
         literal: Num
     },
+    //FIXME: one-off error
     '(': {
         lexer: [/\(/],
-        rbp: 10,
-        nud: function(){
-            var e = this.parseExpression(),
-                s = this.advance(')');
-            return e;
-        }
+        prefix: [10,function(position,value){
+            parser.advance(')');
+            return value;
+        }]
     },
     ')': {
         lexer: [/\)/]
     },
-    'sp': {
-        lexer: [/\x20/,function(position,match){
-            var len = match[0].length;
-            position.index += len;
-            position.col += len;
-            return arithmetic.advance();
-        }]
-    },
-    'lt': {
+    'LT': {
         lexer: [/\r\n?/,function(position,match){
             var len = match[0].length;
             position.index += len;
             position.col = 1;
             position.line++;
-            return arithmetic.advance();
+            return parser.advance();
         }]
     },
-    'unknown': {
+    'SP': {
+        lexer: [/\x20/,function(position,match){
+            var len = match[0].length;
+            position.index += len;
+            position.col += len;
+            return parser.advance();
+        }]
+    },
+    'UNK': {
         lexer: [/[\s\S]/],
-        literal: UNK
+        literal: Unk
     },
     'EOF': {
-        lexer:[/$/],
-        nud: function(){ return this; }
+        lexer: [/$/],
+        literal: Eof
     }
 });

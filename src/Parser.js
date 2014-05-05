@@ -1,51 +1,22 @@
 var Parser = (function(){
-    function Symbol(position,value){
-        this.position = position;
-        this.value = value;
-    }
-
-    function SymbolDef(id,rule){
+    function Lexer(id,symbolProto,regex,action){
         this.id = id;
-        this.lexer = new Lexer(this,rule.lexer[0],rule.lexer[1]);
-        this.lbp = rule.lbp || 0;
-        this.rbp = rule.rbp || 0;
-        if(rule.nud) this.nud = rule.nud;
-        if(rule.led) this.led = rule.led;
-        //TODO: these fixity methods are awkward looking...
-        if(rule.prefix) this.nud = prefix(this,rule.prefix);
-        if(rule.literal) this.nud = literal(this,rule.literal);
-        if(rule.infix) this.nud = infix(this,rule.infix);
-        if(rule.infixR) this.led = infixR(this,rule.infixR);
-        if(rule.suffix) this.led = suffix(this,rule.suffix);
-    }
-    SymbolDef.prototype = {
-        nud: function(){
-            throw new Error("'"+this.id+"' is not a prefix. "+this.position);
-        },
-        led: function(){
-            throw new Error("'"+this.id+"' is not an infix. "+this.position);
-        }
-    };
-
-    function Lexer(rule,regex,action){
+        this.symbolProto = symbolProto;
         this.regex = new RegExp(regex.source,"g");
-        this.rule = rule;
         if(action) this.action = action;
     }
     Lexer.prototype = {
-        action: function(){
-            Symbol.prototype = this.rule;
-            var position = this.position,
-                len = this.match[0].length,
-                symbol = new Symbol(position.clone(),this.match[0]);
+        action: function(position,match){
+            Symbol.prototype = this.symbolProto;
+            var len = match[0].length,
+                symbol = new Symbol(position.clone(),match[0]);
             position.index += len;
             position.col += len;
             return symbol;
         },
-        exec: function(src){
-            this.regex.lastIndex = this.position.index;
-            this.match = this.regex.exec(src);
-            return this;
+        exec: function(position,src){
+            this.regex.lastIndex = position.index;
+            return (this.match = this.regex.exec(src));
         }
     };
 
@@ -63,86 +34,79 @@ var Parser = (function(){
         }
     };
 
-    //FIXME: not very OO...
-    function prefix(self,Cons){
-        return function(){ 
-            return new Cons(
-                self.position.clone(),
-                self.parseExpression(this.rbp)
-            );
-        };
+    function SymbolProto(id,parser,def){
+        this.id = id;
+        this._parser = parser;
+        this.lexer = new Lexer(id,this,def.lexer[0],def.lexer[1]);
+        this.nud = def.nud || def.prefix && this._prefix ||
+            def.literal && this._literal || this.nud;
+        this.led = def.led || def.infix && this._infix ||
+            def.infixR && this._infixR || def.postfix && this._postfix ||
+            this.led;
+        this.rbp = def.prefix && def.prefix[0] || 0;
+        this.lbp = def.infix && def.infix[0] ||
+            def.infixR && def.infixR[0] || def.postfix && def.postfix[0] || 0; 
+        this._nudCons = def.prefix && def.prefix[1] || def.literal;
+        this._ledCons = def.infix && def.infix[1] || 
+            def.infixR && def.infixR[1] || def.postfix && def.postfix[1];
+    }
+    SymbolProto.prototype = {
+        nud: function(){
+            throw new Error("'"+this.id+"' is not a prefix. "+this.position);
+        },
+        led: function(){
+            throw new Error("'"+this.id+"' is not an infix. "+this.position);
+        },
+        _infix: function(left){
+            return new this._ledCons(this.position.clone(),left,
+                this._parser.parseExpression(this.lbp));
+        },
+        _infixR: function(left){
+            return new this._ledCons(this.position.clone(),left,
+            this._parser.parseExpression(this.lbp-1));
+        },
+        _literal: function(){
+            return new this._nudCons(this.position.clone(),this.value);
+        },
+        _postfix: function(left){
+            return new this._ledCons(this.position.clone(),left);
+        },
+        _prefix: function(){
+            return new this._nudCons(this.position.clone(),
+                this._parser.parseExpression(this.rbp));
+        }
+    };
+
+    function Symbol(position,value){
+        this.position = position;
+        this.value = value;
     }
 
-    function literal(self,Cons){
-        return function(){
-            return new Cons(
-                self.position.clone(),
-                self.value
-            );
-        };
-    }
-
-    function infix(self,Cons){
-        return function(left){
-            return new Cons(
-                self.position.clone(),
-                left,
-                self.parseExpression(self.lbp)
-            );
-        };
-    }
-
-    function infixR(self,Cons){
-        return function(left){
-            return new Cons(
-                self.position.clone(),
-                left,
-                self.rbp
-            );
-        };
-    }
-
-    function suffix(self,Cons){
-        return function(left){
-            return new Cons(
-                self.position.clone(),
-                left
-            );
-        };
-    }
-
-    function Parser(rules){
-        this.rules = Object.keys(rules).map(function(id){
-            return new SymbolDef(id,rules[id]);
-        }).concat(EOF);
+    function Parser(def){
+        this.symbols = Object.keys(def).map(function(id){
+            return new SymbolProto(id,this,def[id]);
+        },this);
     }
     Parser.prototype = {
         advance: function(id){
             var self = this, pos = self.position, i = pos.index;
-
             if(id && this.curSymbol.id !== id)
-                throw new TypeError("'"+id+"' expected at: " + pos);
-
-            var longestRule = this.rules.filter(function(rule){
-                var lexer = rule.lexer;
-                lexer.position = pos;
-                var match = lexer.exec(self.src).match;
+                throw new TypeError("'"+id+"' expected at: "+pos);
+            var longestRule = this.symbols.filter(function(rule){
+                var match = rule.lexer.exec(pos,self.src);
                 return !!match && match.index === i;
             }).reduce(function(longestRule,nextRule){
                 return longestRule.lexer.match[0].length >= 
                        nextRule.lexer.match[0].length ? longestRule : nextRule; 
-            },EOF);
-
-            return (this.curSymbol = longestRule.lexer.action(self.position));
+            });
+            return (this.curSymbol = longestRule.lexer.action(pos,longestRule.lexer.match));
         },
         parse: function(src){
             this.src = src;
             this.position = new Position(0,1,1);
             this.advance();
-            if(this.curSymbol.id == 'EOF') return '';
             return this.parseExpression(0);
         },
-        //FIXME: refactor to SymbolDef
         parseExpression: function(rbp){
             var s = this.curSymbol;
             this.advance();

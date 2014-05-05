@@ -15,32 +15,68 @@ Binary.prototype.toString = function(){
     return "(" + this.id + " " + this.left + " " + this.right + ")"; 
 };
 
-function Add(){ Binary.apply(this,arguments); }
+function Add(){
+    this.id = "Add";   
+    Binary.apply(this,arguments);
+}
 Add.prototype = Object.create(Binary.prototype);
 
-function Sub(){ Binary.apply(this,arguments); }
+function Sub(){
+    this.id = "Sub";
+    Binary.apply(this,arguments);
+}
 Sub.prototype = Object.create(Binary.prototype);
 
-function Pos(){ Unary.apply(this,arguments); }
+function Pos(){
+    this.id = "Pos";
+    Unary.apply(this,arguments);
+}
 Pos.prototype = Object.create(Unary.prototype);
 
-function Neg(){ Unary.apply(this,arguments); }
+function Neg(){
+    this.id = "Neg";
+    Unary.apply(this,arguments);
+}
 Neg.prototype = Object.create(Unary.prototype);
 
-function Mul(){ Binary.apply(this,arguments); }
-Mul.prototype= Object.create(Binary.prototype);
+function Mul(){
+    this.id = "Mul";
+    Binary.apply(this,arguments);
+}
+Mul.prototype = Object.create(Binary.prototype);
 
-function Div(){ Binary.apply(this,arguments); }
+function Div(){
+    this.id = "Div";
+    Binary.apply(this,arguments);
+}
 Div.prototype = Object.create(Binary.prototype);
 
-function Pow(){ Binary.apply(this,arguments); }
+function Pow(){
+    this.id = "Pow";
+    Binary.apply(this,arguments);
+}
 Pow.prototype = Object.create(Binary.prototype);
 
-function Fact(){ Unary.apply(this,arguments); }
+function Fact(){
+    this.id ="Fact";
+    Unary.apply(this,arguments);
+}
 Fact.prototype = Object.create(Unary.prototype);
 
-function Num(){ Unary.apply(this,arguments); }
+function Num(){
+    this.id = "Num";
+    Unary.apply(this,arguments);
+}
 Num.prototype = Object.create(Unary.prototype);
 
-function UNK(){ Unary.apply(this,arguments); }
-UNK.prototype = Object.create(Unary.prototype);
+function Unk(){
+    this.id = "Unk";
+    Unary.apply(this,arguments);
+}
+Unk.prototype = Object.create(Unary.prototype);
+
+function Eof(){
+    this.id = "Eof";
+    Unary.apply(this,arguments);
+}
+Eof.prototype = Object.create(Unary.prototype);

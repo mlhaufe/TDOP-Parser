@@ -30,9 +30,10 @@
                 btnParse = id('btnParse'),
                 txtOutput = id('txtOutput'),
                 spnTime = id('spnTime');
+            txtSrc.value = '(2!)';
             btnParse.onclick = function(){
             	var d1 = new Date();
-            	var result = arithmetic.parse(txtSrc.value);
+            	var result = parser.parse(txtSrc.value);
             	spnTime.textContent = new Date() - d1 + "ms";
                 txtOutput.value = result;
             };
