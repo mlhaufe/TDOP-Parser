@@ -41,11 +41,10 @@ var Parser = (function(){
         this.nud = def.nud || def.prefix && this._prefix ||
             def.literal && this._literal || this.nud;
         this.led = def.led || def.infix && this._infix ||
-            def.infixR && this._infixR || def.postfix && this._postfix ||
-            this.led;
+            def.infixR && this._infixR || def.postfix && this._postfix || this.led;
         this.rbp = def.prefix && def.prefix[0] || 0;
-        this.lbp = def.infix && def.infix[0] ||
-            def.infixR && def.infixR[0] || def.postfix && def.postfix[0] || 0; 
+        this.lbp = def.infix && def.infix[0] || def.infixR && def.infixR[0] ||
+            def.postfix && def.postfix[0] || 0;
         this._nudCons = def.prefix && def.prefix[1] || def.literal;
         this._ledCons = def.infix && def.infix[1] || 
             def.infixR && def.infixR[1] || def.postfix && def.postfix[1];

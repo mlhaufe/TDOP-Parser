@@ -30,10 +30,9 @@ var parser = new Parser({
         lexer: [/\d+(?:\.\d+)?/],
         literal: Num
     },
-    //FIXME: one-off error
     '(': {
         lexer: [/\(/],
-        prefix: [10,function(position,value){
+        prefix: [0,function(position,value){
             parser.advance(')');
             return value;
         }]
