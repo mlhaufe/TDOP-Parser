@@ -34,14 +34,37 @@ var Parser = (function(){
         }
     };
 
+    function infix(left){
+        return new this._ledCons(this.position.clone(),left,
+            this._parser.parseExpression(this.lbp));
+    }
+
+    function infixR(left){
+        return new this._ledCons(this.position.clone(),left,
+            this._parser.parseExpression(this.lbp-1));
+    }
+
+    function literal(){
+        return new this._nudCons(this.position.clone(),this.value);
+    }
+
+    function postfix(left){
+        return new this._ledCons(this.position.clone(),left);
+    }
+
+    function prefix(){
+        return new this._nudCons(this.position.clone(),
+            this._parser.parseExpression(this.rbp));
+    }
+
     function SymbolProto(id,parser,def){
         this.id = id;
         this._parser = parser;
         this.lexer = new Lexer(id,this,def.lexer[0],def.lexer[1]);
-        this.nud = def.nud || def.prefix && this._prefix ||
-            def.literal && this._literal || this.nud;
-        this.led = def.led || def.infix && this._infix ||
-            def.infixR && this._infixR || def.postfix && this._postfix || this.led;
+        this.nud = def.nud || def.prefix && prefix ||
+            def.literal && literal || this.nud;
+        this.led = def.led || def.infix && infix ||
+            def.infixR && infixR || def.postfix && postfix || this.led;
         this.rbp = def.prefix && def.prefix[0] || 0;
         this.lbp = def.infix && def.infix[0] || def.infixR && def.infixR[0] ||
             def.postfix && def.postfix[0] || 0;
@@ -55,24 +78,6 @@ var Parser = (function(){
         },
         led: function(){
             throw new Error("'"+this.id+"' is not an infix. "+this.position);
-        },
-        _infix: function(left){
-            return new this._ledCons(this.position.clone(),left,
-                this._parser.parseExpression(this.lbp));
-        },
-        _infixR: function(left){
-            return new this._ledCons(this.position.clone(),left,
-            this._parser.parseExpression(this.lbp-1));
-        },
-        _literal: function(){
-            return new this._nudCons(this.position.clone(),this.value);
-        },
-        _postfix: function(left){
-            return new this._ledCons(this.position.clone(),left);
-        },
-        _prefix: function(){
-            return new this._nudCons(this.position.clone(),
-                this._parser.parseExpression(this.rbp));
         }
     };
 

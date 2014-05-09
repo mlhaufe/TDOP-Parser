@@ -59,7 +59,9 @@ var parser = new Parser({
     },
     'UNK': {
         lexer: [/[\s\S]/],
-        literal: Unk
+        literal: function(position,value){
+            throw new TypeError("Unknown symbol: '"+value+"' at: " + position);
+        }
     },
     'EOF': {
         lexer: [/$/],
