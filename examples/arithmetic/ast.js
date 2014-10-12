@@ -106,9 +106,12 @@ Num.prototype = {
     }
 }
 
-function Eof(){
-    this.id = "Eof";
-    Unary.apply(this,arguments);
+function Eof(){}
+Eof.prototype = {
+    printAst: function(){
+        return "(EOF)"; 
+    },
+    printJS: function(){
+        return "";
+    }
 }
-Eof.prototype = Object.create(Unary.prototype);
-Eof.prototype.printJS = function(){ return ''; }
